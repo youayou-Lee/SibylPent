@@ -1,0 +1,132 @@
+# 类目: 开源运维监控
+# 条目数: 13
+- category: 开源运维监控
+  product: Jenkins
+  name: Jenkins 路径遍历任意文件写入漏洞（CVE-2019-10352）
+  url: https://blog.csdn.net/caiqiiqi/article/details/96431428
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2019-10352
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Jenkins
+  name: Jenkins Git client插件命令执行漏洞(CVE-2019-10392)
+  url: https://www.cnblogs.com/paperpen/p/11626231.html
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2019-10392
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Jenkins
+  name: Jenkins 历史漏洞利用程序
+  url: https://sploitus.com/?query=Jenkins#exploits
+  date: 2021.03.10
+  cnvd_or_cve: null
+  affected_versions: null
+  entry_type: collection
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Zabbix
+  name: CVE-2020-11800 Zabbix 远程代码执行漏洞
+  url: https://xz.aliyun.com/t/8991
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2020-11800
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Zabbix
+  name: Zabbix 中的CSRF到RCE（CVE-2021-27927）
+  url: https://www.horizon3.ai/disclosures/zabbix-csrf-to-rce
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2021-27927
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Zabbix
+  name: Zabbix 2.2 - 3.0.3 远程代码执行漏洞
+  url: https://www.exploit-db.com/exploits/39937
+  date: 2021.03.10
+  cnvd_or_cve: null
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Zabbix
+  name: Zabbix Agent 3.0.1 mysql.size shell命令注入 (CVE-2016-4338)
+  url: https://www.seebug.org/vuldb/ssvid-92245
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2016-4338
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Zabbix
+  name: Zabbix 历史漏洞利用程序
+  url: https://sploitus.com/?query=Zabbix#exploits
+  date: 2021.03.10
+  cnvd_or_cve: null
+  affected_versions: null
+  entry_type: collection
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Nagios
+  name: Nagios XI 5.6.9 远程代码执行漏洞（CVE-2019-20197）
+  url: https://code610.blogspot.com/2019/12/postauth-rce-in-latest-nagiosxi.html
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2019-20197
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Nagios
+  name: nagios-xi-5.7.5 多个漏洞（CVE-2021-25296~99）
+  url: https://github.com/fs0c-sh/nagios-xi-5.7.5-bugs
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2021-25296
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Nagios
+  name: Nagios 代码注入漏洞 (CVE-2021-3273)
+  url: https://gist.github.com/leommxj/93edce6f8572cefe79a3d7da4389374e
+  date: 2021.03.10
+  cnvd_or_cve: CVE-2021-3273
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Nagios
+  name: 'Nagios XI 5.5.10: XSS to RCE'
+  url: https://www.shielder.it/blog/2019/04/nagios-xi-5.5.10-xss-to-/
+  date: 2021.03.10
+  cnvd_or_cve: null
+  affected_versions: null
+  entry_type: vuln
+  notes: null
+  verified: false
+- category: 开源运维监控
+  product: Nagios
+  name: Nagios 历史漏洞利用程序
+  url: https://sploitus.com/?query=Nagios#exploits
+  date: 2021.03.10
+  cnvd_or_cve: null
+  affected_versions: null
+  entry_type: collection
+  notes: null
+  verified: false
