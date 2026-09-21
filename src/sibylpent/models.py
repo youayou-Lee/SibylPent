@@ -6,7 +6,27 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# ---- 现象受控词表（PLAN §3.2；Task 4 起为 expect_tags 的硬约束）----
+
+#: M0 核心 tag 集：13 个现象 tag + body_reflect/body_diff，共 15 个。
+#: surface:* 前缀 tag 由领域包在 M2 注册（M0 不入表，generic.yaml 不使用）。
+CORE_TAGS: frozenset[str] = frozenset({
+    "http_2xx", "http_401", "http_403", "http_404", "http_429", "http_5xx",
+    "timeout", "dns_fail", "tls_error", "waf_block_page", "redirect_external",
+    "set_cookie", "rate_limited", "body_reflect", "body_diff",
+})
+
+#: 依赖基线机制的 tag（M1 网关检查其前置，如 404 基线是否已采样）。
+REQUIRES_BASELINE: frozenset[str] = frozenset({"body_reflect", "body_diff"})
+
+
+def validate_tags(tags: list[str]) -> None:
+    """expect_tags 中出现 CORE_TAGS 之外的 tag 时抛 ValueError（domain-pack 可扩展注册）。"""
+    unknown = sorted(t for t in tags if t not in CORE_TAGS)
+    if unknown:
+        raise ValueError(f"tag 不在受控词表 CORE_TAGS: {', '.join(unknown)}")
 
 
 class VulnEntry(BaseModel):
@@ -41,6 +61,12 @@ class PlaybookEntry(BaseModel):
     expect_tags: list[str] = Field(min_length=1)  # 现象词表 tag（PLAN §3.2 词表）
     success_criteria: str
     refute_criteria: str     # ≥N 条不同 verify 路径的描述（PLAN §5）
+
+    @field_validator("expect_tags")
+    @classmethod
+    def _expect_tags_in_core_vocab(cls, tags: list[str]) -> list[str]:
+        validate_tags(tags)
+        return tags
 
 
 class ToolEntry(BaseModel):

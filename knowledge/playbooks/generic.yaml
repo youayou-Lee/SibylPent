@@ -1,0 +1,104 @@
+# generic 领域 playbook 种子（6 条，Task 4 hand-authored）
+# 源自 redteam-skill web-recon / web-attack 检查项提炼；字段 = models.PlaybookEntry
+# 约束：expect_tags ⊆ CORE_TAGS；body_reflect/body_diff ∈ REQUIRES_BASELINE
+# （M1 网关检查其基线前置；GEN-006 的 404 基线是 REQUIRES_BASELINE 首个消费者）
+- id: GEN-001
+  domain: generic
+  category: recon
+  check: 识别 Web 服务器指纹（Server 头 / X-Powered-By / favicon hash）
+  how: >-
+    对首页与至少 2 个真实路径各发一次 GET，记录响应头中的 Server、X-Powered-By
+    等指纹字段；再下载 /favicon.ico 计算 mmh3 hash 并与已知产品指纹库比对。
+    全部请求/响应归档为 OBS 原始证据。
+  expect_tags: [http_2xx, http_404]
+  success_criteria: >-
+    响应头或 favicon hash 至少一条路径给出可唯一归因的软件名与版本
+    （如 Server: nginx/1.18.0、X-Powered-By: PHP/7.4，或 hash 命中已知产品），
+    据此形成唯一指纹假设，并将 software/version 写入对应 ASSET 记录的 meta 字段。
+  refute_criteria: >-
+    两条 verify 路径均无指纹特征时否证：① 响应头路径——Server/X-Powered-By
+    缺失、被泛化（如 Server: nginx 无版本号）或为反代伪装值；② favicon hash
+    路径——站点无 favicon，或 hash 无任何已知产品命中。
+- id: GEN-002
+  domain: generic
+  category: recon
+  check: 发现 API 端点（OpenAPI spec / sitemap / JS 提取路径）
+  how: >-
+    依次请求常见 spec 与目录位置（/openapi.json、/swagger.json、/api-docs、
+    /sitemap.xml、/robots.txt），对命中内容解析出端点；再对已发现的 JS 资源
+    做路径模式提取（/api/、/v1/ 等）并与前一步结果去重合并。
+  expect_tags: [http_2xx]
+  success_criteria: >-
+    至少一个来源命中（spec 可解析出 paths、sitemap/robots 含 URL 条目、或 JS
+    中提取出 ≥1 个此前未知的端点），去重后的端点清单写入 ASSET（endpoint 实体）。
+  refute_criteria: >-
+    两条 verify 路径独立均为零端点时否证：① spec/sitemap 路径——上述常见位置
+    均返回非 2xx 或内容中无可解析端点；② JS 提取路径——已抓取的全部 JS 资源
+    中无 /api/、/v1/ 等路径模式命中。
+- id: GEN-003
+  domain: generic
+  category: authz
+  check: 未授权访问敏感路径（裸访问 /admin、/api/*）
+  how: >-
+    不携带任何凭据直接 GET 疑似敏感路径（/admin、/api/user、/api/admin 等），
+    记录状态码与响应体；对返回 401/403 的路径，再用错误凭据（随机 token、
+    错误口令）复测一次，确认鉴权真实生效而非装饰。
+  expect_tags: [http_401, http_403, http_2xx]
+  success_criteria: >-
+    无凭据请求返回 2xx 且响应体包含管理功能或敏感数据（非 302 登录跳转、
+    非空壳页），未授权访问成立；命中路径与响应证据写入 ASSET 并标注
+    broken_access_control 假设。
+  refute_criteria: >-
+    三条 verify 路径均出现鉴权现象时否证：① 无凭据——返回 401/403 或 302
+    跳登录；② 错误凭据——同样被拒，且与无凭据响应可区分；③ 带低权凭据——
+    仍无法访问目标路径（垂直越权另行立假设，不在本条否证范围内）。
+- id: GEN-004
+  domain: generic
+  category: injection
+  check: 反射探测：参数值回显到响应
+  how: >-
+    对每个已发现的输入参数注入唯一探测值（如 sibyl-8f3a2c），分别以原样、
+    URL 编码、HTML 实体三种形式提交，记录探测值在响应体中出现的精确位置与
+    上下文（HTML 文本、属性内、JS 字符串内）。
+  expect_tags: [body_reflect]
+  success_criteria: >-
+    唯一探测值或其编码变体出现在响应体中，反射点清单（参数名、URL、回显
+    上下文、是否可闭合标签/引号）写入 ASSET，作为后续注入类检查的前置资产。
+  refute_criteria: >-
+    三条 verify 路径全部不反射时否证：① 原样提交——响应体不含探测值；
+    ② URL 编码提交——解码后的变体不出现；③ HTML 实体提交——渲染文本中
+    不出现。三条路径均需覆盖该参数的默认请求方法。
+- id: GEN-005
+  domain: generic
+  category: injection
+  check: 错误回显：触发异常页/堆栈
+  how: >-
+    向参数提交边界与畸形输入（超长字符串、负数/非数字 ID、非法 JSON、
+    特殊字符 %00'"<> 等），观察是否触发 5xx 或含堆栈、调试信息的错误页。
+  expect_tags: [http_5xx, body_reflect]
+  success_criteria: >-
+    任一载荷触发 5xx 或含堆栈/框架特征（异常类名、文件路径、框架版本、
+    SQL 报错原文）的错误页，泄露内容记入对应 ASSET 的 meta（error_leak）。
+  refute_criteria: >-
+    两条 verify 路径均无异常页时否证：① 常规输入——合法业务值仅产生
+    业务化错误（4xx + 通用错误文案/JSON）；② 边界输入——超长、非法类型、
+    特殊字符均被统一错误处理捕获，无堆栈、无框架标识、无调试细节。
+- id: GEN-006
+  domain: generic
+  category: recon
+  check: 404 基线：先取不存在路径基准响应再判差异
+  how: >-
+    生成至少 2 个随机不存在路径（如 /sibyl-base-a71f/）各请求一次，记录
+    状态码、响应头与正文 SHA256 作为 404 基线；后续判定任意路径"存在与否"
+    时先与该基线比对（状态码 + 正文 hash）再下结论。基线原始响应存
+    evidence/raw。
+  expect_tags: [http_404, body_diff]
+  success_criteria: >-
+    取得至少一组 404 基线（状态码 + 正文 SHA256 + 原始响应），已写入
+    evidence/raw 并可供后续 body_diff 判定引用；本条目是 REQUIRES_BASELINE
+    机制的首个消费者。
+  refute_criteria: >-
+    两条 verify 路径出现"与基线无差异"时否证：① 同一不存在路径两次采样
+    正文 SHA256 相同（基线确定性成立）；② 待判路径响应与基线采样 SHA256
+    相同（软 404，路径无独立内容）——两者均相同时，该路径存在独立内容的
+    假设被否证，refute 证据须引用基线 hash。

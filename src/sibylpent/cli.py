@@ -4,6 +4,7 @@
   parse-vul  解析 redteam_vul README，生成按类目分文件的 YAML 索引
              + _skipped.yaml + _report.md；数量守恒不等则 exit 1
   query      按 product/category/version 过滤查询索引
+  validate   校验知识库 YAML（playbooks/tools 过模型 + expect_tags 过词表）
 """
 
 import argparse
@@ -13,13 +14,21 @@ from pathlib import Path
 from urllib.parse import quote
 
 import yaml
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
-from sibylpent.models import ParseResult, Skipped, VulnEntry
+from sibylpent.models import (
+    ParseResult,
+    PlaybookEntry,
+    Skipped,
+    ToolEntry,
+    VulnEntry,
+    validate_tags,
+)
 from sibylpent.parsers.redteam_vul import count_entry_lines, parse_readme
 from sibylpent.query import load_index, query
 
 DEFAULT_INDEX_DIR = Path("knowledge/vuln_index")
+DEFAULT_KNOWLEDGE_DIR = Path("knowledge")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,9 +49,19 @@ def main(argv: list[str] | None = None) -> int:
     p_query.add_argument("--category", help="类目子串（大小写不敏感）")
     p_query.add_argument("--version", help="版本号 token（M0 启发式子串匹配）")
 
+    p_validate = sub.add_parser("validate", help="校验知识库 YAML（模型 + 受控词表）")
+    p_validate.add_argument(
+        "--knowledge",
+        type=Path,
+        default=DEFAULT_KNOWLEDGE_DIR,
+        help="知识库根目录（默认 %(default)s）",
+    )
+
     args = parser.parse_args(argv)
     if args.command == "parse-vul":
         return _cmd_parse_vul(args.src, args.out)
+    if args.command == "validate":
+        return _cmd_validate(args.knowledge)
     return _cmd_query(args.index_dir, args.product, args.category, args.version)
 
 
@@ -73,6 +92,40 @@ def _cmd_parse_vul(src: Path, out: Path) -> int:
         f" / {entry_lines} entry lines；守恒断言 {verdict}；索引写入 {out}"
     )
     return 0 if conserved else 1
+
+
+def _cmd_validate(knowledge: Path) -> int:
+    """加载 playbooks/tools YAML，逐文件过模型与受控词表；任一错误 exit 1。"""
+    specs = (
+        (knowledge / "playbooks", PlaybookEntry, "playbook"),
+        (knowledge / "tools", ToolEntry, "tool"),
+    )
+    ok = True
+    file_count = 0
+    entry_count = 0
+    for directory, model, kind in specs:
+        files = sorted(directory.glob("*.yaml"))
+        if not files:
+            print(f"错误: {directory} 下无 YAML 文件", file=sys.stderr)
+            ok = False
+            continue
+        for path in files:
+            try:
+                raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+                entries = TypeAdapter(list[model]).validate_python(raw)
+                for entry in entries:  # 模型 validator 已强制；此处为词表规则的显式执行点
+                    if isinstance(entry, PlaybookEntry):
+                        validate_tags(entry.expect_tags)
+            except (OSError, yaml.YAMLError, ValueError) as exc:
+                print(f"错误: {path}: {exc}", file=sys.stderr)
+                ok = False
+                continue
+            print(f"{path}: {len(entries)} 条 {kind} 条目")
+            file_count += 1
+            entry_count += len(entries)
+    verdict = "PASS" if ok else "FAIL"
+    print(f"知识库校验 {verdict}: {file_count} 个文件 / {entry_count} 条条目（{knowledge}）")
+    return 0 if ok else 1
 
 
 def _cmd_query(
