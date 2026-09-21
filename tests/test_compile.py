@@ -93,10 +93,14 @@ def test_cc_skill_frontmatter_and_sections():
     assert set(out) == {"cc_skill/SKILL.md"}
     text = out["cc_skill/SKILL.md"]
     lines = text.splitlines()
-    assert lines[0] == GENERATED_MD_MARK
-    assert lines[1] == "---"  # frontmatter 紧随生成标记
-    assert "name: sibylpent-generic" in lines
-    assert any(line.startswith("description:") for line in lines)
+    # 控制器裁定：SKILL.md 豁免首行标记——frontmatter 必须位于文件首行
+    # （Claude Code 只在 --- 是第一行时才解析 name/description），生成标记
+    # 紧随 frontmatter 结束的 --- 之后。
+    assert lines[0] == "---"
+    assert lines[1] == "name: sibylpent-generic"
+    assert lines[2].startswith("description:")
+    assert lines[3] == "---"
+    assert lines[4] == GENERATED_MD_MARK
     for needle in (
         "## Playbook Checklist",
         "## Tools",

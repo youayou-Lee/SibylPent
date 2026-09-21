@@ -17,14 +17,16 @@ def compile_cc_skill(
     """→ {cc_skill/SKILL.md}：YAML frontmatter + Playbook/Tools/Known vulns 三节。
 
     内容源与 cai/instructions.md 相同（检查清单 / 工具表 / 漏洞摘要），
-    按 Claude Code skill 的 markdown 习惯排版。
+    按 Claude Code skill 的 markdown 习惯排版。frontmatter 必须是文件首行
+    （Claude Code 只在 ``---`` 位于第一行时才解析 name/description），故本文件
+    豁免首行生成标记：标记放在 frontmatter 结束的 ``---`` 之后（控制器裁定）。
     """
     lines = [
-        GENERATED_MARKDOWN,
         "---",
         "name: sibylpent-generic",
         'description: "SibylPent generic Web 渗透：检查清单、工具档位与已知漏洞索引摘要"',
         "---",
+        GENERATED_MARKDOWN,
         "",
         "# SibylPent Generic Web Pentest",
         "",
