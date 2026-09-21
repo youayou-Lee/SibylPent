@@ -21,8 +21,8 @@ SibylPent 是一个 **证据优先、预测锁定的 AI Web 渗透测试框架**
 
 ## 2. 三支柱
 
-1. **证据账本（Evidence Ledger）**：append-only JSONL，五类记录（PRD 预测 / ACT 动作 / OBS 现象 / INF 推理 / DEC 决策）。现象与推理解耦——OBS 的 tag 只能取自现象级受控词表、禁止携带因果解释；INF 必须枚举候选原因（含叠加原因）+ 各自的 verify 动作。
-2. **动作前强制预测（Prediction Lock）**：`PRD → ACT → OBS → COMPARE` 时序状态机由工具网关硬强制：无未消费 PRD 则拒绝执行工具。猜错不惩罚，**mismatched（猜错）是黄金信号**——预期与现象不一致即认知盲区，自动生成调查任务。
+1. **证据账本（Evidence Ledger）**：append-only JSONL，六类记录（PRD 预测 / ACT 动作 / OBS 现象 / INF 推理 / DEC 决策 / ASSET 资产）。现象与推理解耦——OBS 的 tag 只能取自现象级受控词表、禁止携带因果解释；INF 必须枚举候选原因（含叠加原因）+ 各自的 verify 动作。
+2. **动作前强制预测（Prediction Lock）**：`PRD → ACT → OBS → COMPARE` 时序状态机由工具网关硬强制：无未消费 PRD 则拒绝执行工具。**COMPARE 由代码计算**（非 LLM 自报），`expect_tags_any` 基数上限 ≤3 + Brier 式记分抑制超集对冲。猜错不惩罚，**mismatched 是黄金信号**——自动生成调查任务。
 3. **覆盖引擎（Coverage Engine）**：playbook 条目 × 目标面矩阵，由编排器代码统计账本覆盖率、判定终止。"打不通"不是合法收工理由，"矩阵全 covered/refuted"才是。
 
 ## 3. 架构总览
@@ -36,7 +36,7 @@ SibylPent 是一个 **证据优先、预测锁定的 AI Web 渗透测试框架**
           ┌────────────▼───┐   ┌──────▼─────────────────┐
           │  Agent（LLM）   │   │  Evidence Ledger        │
           │ 领域playbook注入 │   │  append-only JSONL      │
-          └──────┬─────────┘   │  PRD/OBS/INF/ACT/DEC    │
+          └──────┬─────────┘   │ PRD/OBS/INF/ACT/DEC/AST │
                  │             └──────▲─────────────────┘
                  │                    │ 强制写入
        ┌─────────▼─────────┐          │

@@ -38,7 +38,7 @@ redteam-skill 的 SKILL.md 已有一套操作纪律，逐条映射到 SibylPent 
 
 ### 1.2 知识转译
 
-- `skills/web-recon/references/`（api-discovery、cms-cheatsheet、http-topology、frontend-recon）+ `skills/web-attack/`（注入/上传/LFI/SSRF/XXE/SSTI/反序列化/JWT/SAML/API 逻辑/desync）→ `knowledge/playbooks/generic/*.yaml`。
+- `skills/web-recon/references/`（api-discovery、cms-cheatsheet、http-topology、frontend-recon、vulnerability-intelligence）+ `skills/web-attack/`（注入/上传/LFI/SSRF/XXE/SSTI/反序列化/JWT/SAML/API 逻辑/desync）→ `knowledge/playbooks/generic/*.yaml`。
 - 转译规则：散文知识 → 结构化条目，字段 `{id, domain, category, check, how, expect_tags, success_criteria}`，每条目即覆盖引擎的一个覆盖 key。
 - 分段注入策略继承 redteam-skill 的 reference 按需加载设计。
 
@@ -60,7 +60,7 @@ redteam-skill 本身就是 Claude Code skill 格式。转译器（M0 交付物�
 * [日期] - [漏洞名(CNVD-xxxx)](url) - 影响版本... → entry
 ```
 
-输出 `vuln_index/<category>.yaml`，字段 `{product, vuln_name, cnvd_or_cve, affected_versions, ref_url, date, verified: false}`，构建"产品 → 已知漏洞 + 版本约束 + 复现链接"索引。
+输出 `vuln_index/<category>.yaml`，字段 `{product, vuln_name, cnvd_or_cve, affected_versions, ref_url, date, entry_type, verified: false}`。`entry_type ∈ {vuln, tool, collection, placeholder}`——上游含 ⚒️ 工具条目、"XX历史漏洞合集"聚合链接、无编号占位条目，均按类型保留而非丢弃；无法归类者进显式 skip 清单（带理由）。M0 验收口径：**全部条目解析为 typed 记录或带理由显式跳过**，不做静默丢弃。构建"产品 → 已知漏洞 + 版本约束 + 复现链接"索引。
 
 ### 2.2 指纹层反哺
 
@@ -76,7 +76,7 @@ redteam_vul = 打点层，领域 playbook = 业务层。金融/电商企业渗�
 
 ## 3. RedTeam-Tools → 工具网关的选型菜单
 
-**上游形态**：README 工具目录（150+ 工具，分类 recon/exploitation/post-exploitation/listening 等，偏 Windows/AD/钓鱼）。
+**上游形态**：README 工具目录（150+ 工具，按 MITRE ATT&CK 战术名分章：Red Team Tips / Reconnaissance / Initial Access / Execution / Persistence / Privilege Escalation / Defense Evasion / Credential Access / Discovery / Lateral Movement / Exfiltration / Impact，偏 Windows/AD/钓鱼）。
 
 **抽取规则**：Web 相关子集 → `knowledge/tools/catalog.yaml`，字段 `{name, url, phase, category, permission_tier, wrap_as}`。`wrap_as` 决定网关封装形式：capability（HBG 能力）/ mcp（MCP server）/ cli（run_command 透传）。
 
@@ -99,10 +99,18 @@ redteam_vul = 打点层，领域 playbook = 业务层。金融/电商企业渗�
 
 知识更新单点化：上游仓库更新 → 重跑解析器/转译器 → 三格式产物再生成。
 
-## 5. 待 review 决策点
+## 5. 决策点状态（v2 更新）
 
-1. §1.1 条款映射表是否有遗漏/错译（需对照 redteam-skill 原文逐条核对）
-2. vuln_index 字段设计是否够用（是否需要去重键、人工复核流程）
-3. 权限档映射初值是否合理（scan 开关位与 exploit 人工确认的边界）
-4. canonical YAML schema 细节（字段命名、必填/可选、多语言支持）
-5. 编译产物放 `gen/` 目录并 gitignore，还是提交进仓库
+**v1 遗留 → v2 处置**：
+
+1. §1.1 条款映射表——评审已核实 7 行忠实于原文；"是否有遗漏"仍开放
+2. vuln_index 字段——已加 `entry_type`；去重键、人工复核流程仍开放
+3. 权限档边界——自主模式 exploit 档三选一降级语义已定义（PLAN §6），默认"拒绝改道"
+4. canonical YAML schema 细节——`entry_type` 已定；字段命名/必填可选/多语言仍开放
+5. 编译产物放 `gen/` 并 gitignore，还是提交进仓库——**仍开放**
+
+**v2 新增决策点**（评审提出、方向已定，细节 M1 定稿）：
+
+6. branches 机器可求值谓词化的引入时机（当前不计分，仅解释性）
+7. Brier 记分公式细节与"对冲降分"阈值
+8. SubAgent 账本 namespace 的合并时机与冲突规则（独立 namespace 已定）
