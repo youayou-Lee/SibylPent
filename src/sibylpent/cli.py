@@ -5,17 +5,20 @@
              + _skipped.yaml + _report.md；数量守恒不等则 exit 1
   query      按 product/category/version 过滤查询索引
   validate   校验知识库 YAML（playbooks/tools 过模型 + expect_tags 过词表）
+  compile    编译知识库为三运行时格式（hbg/cai/cc_skill），写入 --out（默认 gen/）
 """
 
 import argparse
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import TypeVar
 from urllib.parse import quote
 
 import yaml
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from sibylpent.compilers import compile_cai, compile_cc_skill, compile_hbg
 from sibylpent.models import (
     ParseResult,
     PlaybookEntry,
@@ -29,6 +32,9 @@ from sibylpent.query import load_index, query
 
 DEFAULT_INDEX_DIR = Path("knowledge/vuln_index")
 DEFAULT_KNOWLEDGE_DIR = Path("knowledge")
+DEFAULT_OUT_DIR = Path("gen")
+
+_ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -57,11 +63,29 @@ def main(argv: list[str] | None = None) -> int:
         help="知识库根目录（默认 %(default)s）",
     )
 
+    p_compile = sub.add_parser(
+        "compile", help="编译知识库为三运行时格式（hbg / cai / cc_skill）"
+    )
+    p_compile.add_argument(
+        "--knowledge",
+        type=Path,
+        default=DEFAULT_KNOWLEDGE_DIR,
+        help="知识库根目录（默认 %(default)s）",
+    )
+    p_compile.add_argument(
+        "--out",
+        type=Path,
+        default=DEFAULT_OUT_DIR,
+        help="编译输出根目录（默认 %(default)s）",
+    )
+
     args = parser.parse_args(argv)
     if args.command == "parse-vul":
         return _cmd_parse_vul(args.src, args.out)
     if args.command == "validate":
         return _cmd_validate(args.knowledge)
+    if args.command == "compile":
+        return _cmd_compile(args.knowledge, args.out)
     return _cmd_query(args.index_dir, args.product, args.category, args.version)
 
 
@@ -126,6 +150,62 @@ def _cmd_validate(knowledge: Path) -> int:
     verdict = "PASS" if ok else "FAIL"
     print(f"知识库校验 {verdict}: {file_count} 个文件 / {entry_count} 条条目（{knowledge}）")
     return 0 if ok else 1
+
+
+def _load_model_dir(directory: Path, model: type[_ModelT]) -> list[_ModelT]:
+    """加载 directory/*.yaml → list[model]（pydantic 校验；文件名排序确定顺序）。
+
+    目录缺失或无 YAML 文件时抛 FileNotFoundError，数据不符模型时抛
+    ValidationError（ValueError 子类）——均由 _cmd_compile 统一转 exit 1。
+    """
+    files = sorted(directory.glob("*.yaml"))
+    if not files:
+        raise FileNotFoundError(f"{directory} 下无 YAML 文件")
+    adapter = TypeAdapter(list[model])
+    entries: list[_ModelT] = []
+    for path in files:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        entries.extend(adapter.validate_python(raw))
+    return entries
+
+
+def _cmd_compile(knowledge: Path, out: Path) -> int:
+    """加载三份知识源（pydantic 校验）→ 编译三格式 → 写 {out}/{hbg,cai,cc_skill}/。
+
+    任一源加载/校验失败 exit 1；成功时逐文件打印写入路径与条目数。
+    """
+    try:
+        playbook_entries = _load_model_dir(knowledge / "playbooks", PlaybookEntry)
+        tools = _load_model_dir(knowledge / "tools", ToolEntry)
+        vulns = load_index(knowledge / "vuln_index")
+    except (OSError, yaml.YAMLError, ValueError) as exc:
+        print(f"错误: 知识库加载/校验失败: {exc}", file=sys.stderr)
+        return 1
+
+    outputs: dict[str, str] = {}
+    for compiled in (
+        compile_hbg(playbook_entries, tools),
+        compile_cai(playbook_entries, tools, vulns),
+        compile_cc_skill(playbook_entries, tools, vulns),
+    ):
+        outputs.update(compiled)
+
+    full_counts = (
+        f"{len(playbook_entries)} playbook / {len(tools)} tools / {len(vulns)} vulns"
+    )
+    counts = {
+        "hbg/playbook.py": f"{len(playbook_entries)} playbook",
+        "hbg/system_prompt.md": f"{len(playbook_entries)} playbook",
+        "cai/instructions.md": full_counts,
+        "cc_skill/SKILL.md": full_counts,
+    }
+    for rel_path in sorted(outputs):
+        target = out / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(outputs[rel_path], encoding="utf-8")
+        print(f"写入 {target}（{counts[rel_path]}）")
+    print(f"编译完成: {len(outputs)} 个文件 ← {full_counts}（{knowledge}）")
+    return 0
 
 
 def _cmd_query(
