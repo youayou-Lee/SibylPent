@@ -363,9 +363,9 @@ def compile_cc_skill(entries, tools, vulns) -> dict[str, str]:
 
 - [ ] **Step 1:** 全量验证：`uv run pytest -v`（全部 PASS）
 - [ ] **Step 2:** M0 验收对照（PLAN §7 M0 行）：
-  - [ ] `sibylctl compile` 跑通三格式产物（gen/hbg、gen/cai、gen/cc_skill 各有产出）
-  - [ ] vuln_index 全部条目 typed 或带理由显式跳过（_report.md 数量守恒断言通过）
-  - [ ] `sibylctl query --product 通达 --version 11.5` 命中通达OA条目
+  - [x] `sibylctl compile` 跑通三格式产物（gen/hbg、gen/cai、gen/cc_skill 各有产出）
+  - [x] vuln_index 全部条目 typed 或带理由显式跳过（_report.md 数量守恒断言通过）
+  - [x] `sibylctl query --product 通达 --version 11.5` 命中通达OA条目
 - [ ] **Step 3:** README §6 状态更新（M0 完成 + 指向 knowledge/ 与 sibylctl）+ INTEGRATION §5 决策点 5 处置注记（gen/ 已 gitignore 默认忽略）
 - [ ] **Step 4:** Commit：`chore(m0): M0 验收通过，文档状态更新`
 - [ ] **Step 5:** push 全部提交

@@ -67,7 +67,13 @@ SibylPent 不从零写知识：三个已验证的红队知识库经**转译流�
 
 ## 6. 当前状态
 
-> 📝 **PLAN-ONLY 阶段**：本仓库当前只含设计文档，未开始任何实现。方案正等待 review（人类 + AI 交叉评审）后，按 [docs/PLAN.md](docs/PLAN.md) 第 7 节路线图推进。
+> ✅ **M0（知识底座）已实现并通过验收**，49 项测试全绿：
+>
+> - `sibylctl` 四个子命令：`parse-vul` / `query` / `validate` / `compile`
+> - `knowledge/vuln_index/`：117 条漏洞索引（数量守恒断言 PASS）· `knowledge/playbooks/generic.yaml`（6 条种子）· `knowledge/tools/catalog.yaml`（10 个工具）
+> - `compile` 生成三格式运行时工件（HBG / CAI / Claude Code skill）至 `gen/`（已 gitignore，可由 knowledge/ 确定性再生）
+>
+> M1+ 的证据账本 / 预测锁定运行时**尚未实现**——当前框架不能执行任何渗透测试动作。路线图见 [docs/PLAN.md](docs/PLAN.md) 第 7 节。
 
 欢迎 review 意见：对账本 schema、强制层次（prompt/schema/gateway/执行层）、领域 playbook 条目设计、双基座选型、路线图合理性提出批评与建议——请开 Issue。
 

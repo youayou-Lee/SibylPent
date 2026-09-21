@@ -107,7 +107,7 @@ redteam_vul = 打点层，领域 playbook = 业务层。金融/电商企业渗�
 2. vuln_index 字段——已加 `entry_type`；去重键、人工复核流程仍开放
 3. 权限档边界——自主模式 exploit 档三选一降级语义已定义（PLAN §6），默认"拒绝改道"
 4. canonical YAML schema 细节——`entry_type` 已定；字段命名/必填可选/多语言仍开放
-5. 编译产物放 `gen/` 并 gitignore，还是提交进仓库——**仍开放**
+5. 编译产物放 `gen/` 并 gitignore，还是提交进仓库——**M0 已处置：保持默认 gitignore**（产物可由 knowledge/ 经 `sibylctl compile` 确定性再生，确定性由测试固定；M0 关闭）
 
 **v2 新增决策点**（评审提出、方向已定，细节 M1 定稿）：
 
