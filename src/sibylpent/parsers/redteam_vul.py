@@ -25,6 +25,15 @@ _AFFECTED_RE = re.compile(r"^影响(?:版本)?\s*(.+)$")
 # ⚒️ 工具图标（U+2692，可带 U+FE0F 变体选择符）
 _TOOL_ICON = "⚒"
 
+# 非断行空格等 Unicode 空白：真实 README 的条目分隔是 '] \xa0- \xa0['，
+# 必须先归一化为普通空格，条目/后缀正则才能命中
+_UNICODE_SPACE_RE = re.compile(r"[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]")
+
+
+def _normalize_spaces(text: str) -> str:
+    """把 NBSP/全角空格等非断行 Unicode 空白统一替换为普通空格。"""
+    return _UNICODE_SPACE_RE.sub(" ", text)
+
 
 def parse_readme(text: str) -> ParseResult:
     """三层结构：## 类目 → > 产品 → * 条目。
@@ -40,7 +49,7 @@ def parse_readme(text: str) -> ParseResult:
     skipped: list[Skipped] = []
     category = ""
     product = ""
-    for raw_line in text.splitlines():
+    for raw_line in _normalize_spaces(text).splitlines():
         line = raw_line.strip()
         if not line:
             continue
@@ -68,8 +77,12 @@ def parse_readme(text: str) -> ParseResult:
 
 
 def count_entry_lines(text: str) -> int:
-    """README 中以 '* ' 开头的条目行数（数量守恒校验用）。"""
-    return sum(1 for line in text.splitlines() if line.startswith("* "))
+    """README 中以 '* ' 开头的条目行数（数量守恒校验用，忽略缩进与 NBSP）。"""
+    return sum(
+        1
+        for line in _normalize_spaces(text).splitlines()
+        if line.strip().startswith("* ")
+    )
 
 
 def _build_entry(date: str, rest: str, category: str, product: str) -> VulnEntry:
