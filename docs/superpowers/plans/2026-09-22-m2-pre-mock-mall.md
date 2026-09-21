@@ -92,17 +92,17 @@ class ProfileUpdateIn(BaseModel):
 
 ## Ground Truth 总表（9 条，单一事实源 = ground_truth.yaml）
 
-| id | 类别 | endpoint | 触发（trigger） | 预期现象（SAFE_MODE=0） | SAFE_MODE=1 行为 |
-|---|---|---|---|---|---|
-| MALL-001 | race | `POST /api/orders` | 商品 5（stock=1）；alice、bob 并发各提交 `{"items":[{"product_id":5,"quantity":1}]}`（50ms 竞态窗内同时过库存检查） | 两请求均 HTTP 200、两订单均创建；`GET /api/products/5` 返回 `stock=-1` | 原子条件扣减（`UPDATE ... WHERE stock>=qty`），仅 1 笔 200，另一笔 400/40002，stock=0 |
-| MALL-002 | amount | `POST /api/orders` | alice 提交 `{"items":[{"product_id":1,"quantity":1,"unit_price":0.01}]}`（DB 价 99.0） | HTTP 200，订单 `total=0.01`；`unit_price=0` 时 `total=0.0`（0 元购） | 忽略 `unit_price`，`total=99.0` |
-| MALL-003 | amount | `POST /api/orders` | 提交 `{"product_id":1,"quantity":1,"unit_price":-50}`；或 `{"product_id":1,"quantity":-1}` | HTTP 200；前者 `total=-50.0`，后者订单创建且库存 10→11（负数量反向扣减） | 400/40001 拒绝（quantity<1 或金额为负） |
-| MALL-004 | amount | `POST /api/orders` | 提交商品 3（0.1）+ 商品 4（0.2）各 1 件（价格即 float 存储） | HTTP 200，`total=0.30000000000000004`（IEEE754 直算 ≠ 0.3） | 分（cent）整数运算，`total=0.3` |
-| MALL-005 | authz | `GET /api/orders/{id}` | bob 携自身 token 请求 alice 的订单 1001；继续遍历 1001..100N | HTTP 200 返回 alice 订单（含 `user_id=1`）；订单号自增可枚举 | 403/40301；本人订单仍 200；不存在 404 |
-| MALL-006 | authz | `PUT /api/users/me` → `GET /api/admin/users` | alice 提交 `{"role":"admin"}` 后携原 token 调 admin 接口 | PUT 200 且返回 `role="admin"`；`GET /api/admin/users` 200 返回全部用户 | `role` 字段忽略（仍 user）；admin 接口 403/40301 |
-| MALL-007 | coupon | `POST /api/coupons/claim` | alice 对 SAVE10 连续领取 2 次，两实例分别核销于 2 笔订单 | 每次领取 200 生成新实例；两笔订单均享 10 元折扣（循环领取重复受益） | 每用户每码限 1 张，第 2 次 400/40003 |
-| MALL-008 | coupon | `POST /api/coupons/claim` | alice 提交 `{"code":"SAVE10","amount":10000}`（或 `-50`）后下单核销 | 领取 200 且实例 `amount=10000`；订单 `total=499-10000=-9501.0`（负总额）；`amount=-50` 时 total 反增 | 忽略客户端 `amount`，实例面额=模板 10.0 |
-| MALL-009 | race | `POST /api/orders`（带 coupon_code） | alice 领 1 张 SAVE10 后并发提交 2 笔使用该券的订单（竞态窗内 status 检查与回写分离） | 两订单均 200 且均减 10 元（一券两用） | 原子条件核销，仅 1 笔享折扣，另一笔 400/40003 |
+| id | title | 类别 | endpoint | 触发（trigger） | 预期现象（SAFE_MODE=0） | SAFE_MODE=1 行为 |
+|---|---|---|---|---|---|---|
+| MALL-001 | 订单竞态超卖 | race | `POST /api/orders` | 商品 5（stock=1）；alice、bob 并发各提交 `{"items":[{"product_id":5,"quantity":1}]}`（50ms 竞态窗内同时过库存检查） | 两请求均 HTTP 200、两订单均创建；`GET /api/products/5` 返回 `stock=-1` | 原子条件扣减（`UPDATE ... WHERE stock>=qty`），仅 1 笔 200，另一笔 400/40002，stock=0 |
+| MALL-002 | 客户端价格篡改 | amount | `POST /api/orders` | alice 提交 `{"items":[{"product_id":1,"quantity":1,"unit_price":0.01}]}`（DB 价 99.0） | HTTP 200，订单 `total=0.01`；`unit_price=0` 时 `total=0.0`（0 元购） | 忽略非负 `unit_price`，`total=99.0` |
+| MALL-003 | 负数金额/数量 | amount | `POST /api/orders` | 提交 `{"product_id":1,"quantity":1,"unit_price":-50}`；或 `{"product_id":1,"quantity":-1}` | HTTP 200；前者 `total=-50.0`，后者订单创建且库存 10→11（负数量反向扣减） | 400/40001 拒绝（quantity<1 或 unit_price<0，两者都拒） |
+| MALL-004 | 浮点精度滥用 | amount | `POST /api/orders` | 提交商品 3（0.1）+ 商品 4（0.2）各 1 件（价格即 float 存储） | HTTP 200，`total=0.30000000000000004`（IEEE754 直算 ≠ 0.3） | 分（cent）整数运算，`total=0.3` |
+| MALL-005 | 订单水平越权（IDOR） | authz | `GET /api/orders/{id}` | bob 携自身 token 请求 alice 的订单 1001；继续遍历 1001..100N | HTTP 200 返回 alice 订单（含 `user_id=1`）；订单号自增可枚举 | 403/40301；本人订单仍 200；不存在 404 |
+| MALL-006 | 垂直越权提权 | authz | `PUT /api/users/me` → `GET /api/admin/users` | alice 提交 `{"role":"admin"}` 后携原 token 调 admin 接口 | PUT 200 且返回 `role="admin"`；`GET /api/admin/users` 200 返回全部用户 | `role` 字段忽略（仍 user）；admin 接口 403/40301 |
+| MALL-007 | 优惠券循环领取 | coupon | `POST /api/coupons/claim` | alice 对 SAVE10 连续领取 2 次，两实例分别核销于 2 笔订单 | 每次领取 200 生成新实例；两笔订单均享 10 元折扣（循环领取重复受益） | 每用户每码限 1 张，第 2 次 400/40003 |
+| MALL-008 | 优惠券面额篡改 | coupon | `POST /api/coupons/claim` | alice 提交 `{"code":"SAVE10","amount":10000}`（或 `-50`）后下单核销 | 领取 200 且实例 `amount=10000`；订单 `total=499-10000=-9501.0`（负总额）；`amount=-50` 时 total 反增 | 忽略客户端 `amount`，实例面额=模板 10.0 |
+| MALL-009 | 优惠券并发核销 | race | `POST /api/orders`（带 coupon_code） | alice 领 1 张 SAVE10 后并发提交 2 笔使用该券的订单（竞态窗内 status 检查与回写分离） | 两订单均 200 且均减 10 元（一券两用） | 原子条件核销，仅 1 笔 200（89.0），另一笔 400/40003 整单拒绝（不落无券订单，见 Task 7 事务顺序） |
 
 detection_tags（每条 yaml 附，供 M2 playbook/M3 覆盖引擎对齐；取值 ⊆ PLAN §3.2 受控词表，surface ⊆ PLAN §3.2 业务面枚举）：
 
@@ -425,11 +425,13 @@ def auth(token: str) -> dict:
 if not settings.safe_mode and it.unit_price is not None:
     unit = it.unit_price        # VULN(MALL-002/MALL-003): 信任客户端单价（0/负数照收）
 else:
-    unit = product.price        # SAFE(MALL-002): 服务端价格为准
+    if settings.safe_mode and it.unit_price is not None and it.unit_price < 0:
+        return err(400, 40001, "unit_price must be >= 0")   # SAFE(MALL-003): 负单价直接拒绝
+    unit = product.price        # SAFE(MALL-002): 服务端价格为准（其余客户端单价一律忽略，含 0）
 # 数量校验：
 if settings.safe_mode and it.quantity < 1:
     return err(400, 40001, "quantity must be >= 1")   # SAFE(MALL-003)
-# 非 SAFE 分支不校验 → 负数量直接放行，扣减 stock-qty 反向增库存  # VULN(MALL-003)
+# 非 SAFE 分支两者皆不校验 → 负单价采信、负数量放行（扣减 stock-qty 反向增库存）  # VULN(MALL-003)
 # 金额：
 total = math.fsum(u * q for ...)            # VULN(MALL-004): float 直算（0.1+0.2 ≠ 0.3）
 total_cents = sum(round(u*100) * q ...)     # SAFE(MALL-004): 分整数运算后 /100
@@ -498,7 +500,7 @@ def test_safe_mall004_cent_math_total_exact(client_safe):
     assert r.json()["data"]["total"] == 0.3   # 分运算；与 0.3 字面量同一双精度值
 ```
 
-- [ ] **Step 2:** 运行 `uv run pytest tests/test_vuln_amount.py -v`，Expected: `mall002/mall003` vuln 测试 FAIL（核心还是 SAFE 形状）、`mall004` safe 测试 FAIL（float 直算）；其余 PASS
+- [ ] **Step 2:** 运行 `uv run pytest tests/test_vuln_amount.py -v`，Expected: `mall002`/`mall003` 全部 vuln 测试与 `test_safe_mall003` FAIL（Task 3 核心对 unit_price 只忽略不拒绝：负单价 leg 得 200 而非 400），`test_safe_mall004` FAIL（float 直算）；`test_safe_mall002` 与 `test_vuln_mall004` 此时已 PASS（忽略行为与 float 现象在 naive 核心已存在）
 - [ ] **Step 3:** 在 orders.py 按 Interfaces 分支结构实现（vuln/safe 注释成对），`math.fsum` 或裸 sum 均可——以 `0.1+0.2` 双精度结果为准确认
 - [ ] **Step 4:** 运行同测试，Expected: 8 PASS
 - [ ] **Step 5:** Commit：`feat(m2-pre): 金额篡改漏洞族（客户端价格/负数/精度）`
@@ -549,7 +551,7 @@ def _two_concurrent_orders(tmp_path, safe_mode):
     barrier = threading.Barrier(2)
 
     def fire(client, token):
-        barrier.wait()                          # 对齐起跑，确保都落进竞态窗
+        barrier.wait(timeout=10)                # 对齐起跑，确保都落进竞态窗；超时即失败，防挂起
         return client.post("/api/orders", headers=auth(token),
                            json={"items": [{"product_id": 5, "quantity": 1}]})
 
@@ -569,7 +571,7 @@ def test_safe_mall001_atomic_decrement_no_oversell(tmp_path):
     assert c1.get("/api/products/5").json()["data"]["stock"] == 0
 ```
 
-- [ ] **Step 2:** 运行 `uv run pytest tests/test_vuln_oversell.py -v`，Expected: FAIL（当前无竞态窗，vuln 测试中两请求串行后第二个 400）
+- [ ] **Step 2:** 运行 `uv run pytest tests/test_vuln_oversell.py -v`，Expected: safe 测试 FAIL（Task 3 核心是"检查→扣减"两步、无原子条件扣减兜底，Barrier 对齐的并发可双双通过→超卖）；vuln 测试**红绿皆可能**——无显式窗口时两请求也可能在检查-扣减间隙交错而过，属预期内的调度不确定性，加显式竞态窗后转为稳定 PASS（红步判据以 safe 测试为准）
 - [ ] **Step 3:** 按 Interfaces 实现（sleep 必须在**锁外**——锁内 sleep 会串行化整个窗，竞态消失）
 - [ ] **Step 4:** 运行同测试，Expected: 2 PASS
 - [ ] **Step 5:** Commit：`feat(m2-pre): 订单竞态超卖漏洞`
@@ -641,16 +643,25 @@ else:
     # SAFE(MALL-008): amount 一律取模板面额
 
 # POST /api/orders 的 coupon_code 核销段：
-uc = SELECT user_coupons WHERE user_id=? AND coupon.code=? ...   # 匹配本人该码实例
+# 实例匹配：本人该码 **status='unused'** 的实例（id 最小者优先）；无匹配 → 400/40003
+#   —— 未使用限定是 MALL-007 的前提：第二张订单须匹配到第 2 个未用实例才享折扣
+uc = SELECT user_coupons JOIN coupons ... WHERE user_id=? AND code=? AND status='unused'
+     ORDER BY id LIMIT 1
 if not settings.safe_mode:
-    if uc.status != 'unused': 400/40003
-    time.sleep(race_window_ms/1000)          # VULN(MALL-009): 检查与回写分离（锁外竞态窗）
-    UPDATE user_coupons SET status='used'    # 无条件回写 → 一券两用
+    time.sleep(race_window_ms/1000)          # VULN(MALL-009): 检查（SELECT 已过滤 unused）与回写分离（锁外竞态窗）
+    UPDATE user_coupons SET status='used' WHERE id=?   # 无条件回写 → 一券两用
     total -= uc.amount                       # VULN 系 float 减
 else:
     cur = UPDATE user_coupons SET status='used' WHERE id=? AND status='unused'  # SAFE(MALL-009): 原子
     if cur.rowcount == 0: 400/40003
     total_cents -= round(uc.amount * 100)    # SAFE 系分运算
+
+# POST /api/orders 全流程事务顺序（两种模式一致；Task 5 草图中窗口后的扣减移入本节统一落库）：
+#   1. 校验（商品存在性/价格取值/数量/金额）——纯读，无写入
+#   2. 模式分支的检查与竞态窗（窗在锁外；库存 SELECT 与券 SELECT 各带一个窗）
+#   3. 单一锁定事务：库存扣减 + 券核销回写 + orders/order_items INSERT → COMMIT
+#      事务内任一步要 err() 返回 → 先 ROLLBACK 再返回——不落无券订单、不烧券、不留孤儿扣减
+#   （SAFE(MALL-009) 的核销与订单 INSERT 同事务：核销失败整单 400，库存/券/订单零残留）
 ```
 
 - [ ] **Step 1:** 写 `tests/test_vuln_coupon.py`（测试名固定）：
@@ -662,10 +673,10 @@ else:
   - `test_vuln_mall008_claim_amount_tampering_negative_total` — `{"code":"SAVE10","amount":10000}` 领取后买商品 5 → total == -9501.0
   - `test_vuln_mall008_claim_negative_denomination_increases_total` — amount=-50 → total == 549.0（499+50）
   - `test_safe_mall008_claim_ignores_client_amount` — 同篡改请求，实例 amount==10.0，订单 total==489.0
-  - `test_vuln_mall009_concurrent_redeem_double_discount` — 领 1 张后两并发订单（Task 5 同款 Barrier 手法，race_window_ms=200，商品 1 各 ×1）→ 均 200 且 total 均 89.0
-  - `test_safe_mall009_atomic_redeem_single_use` — 同场景 safe 模式：一笔 200（total=89.0），另一笔 400/40003（整单拒绝，不落无券订单）
+  - `test_vuln_mall009_concurrent_redeem_double_discount` — 领 1 张后两并发订单（Task 5 同款 Barrier 手法，`wait(timeout=10)`，race_window_ms=200，商品 1 各 ×1）→ 均 200 且 total 均 89.0
+  - `test_safe_mall009_atomic_redeem_single_use` — 同场景 safe 模式：一笔 200（total=89.0），另一笔 400/40003（整单拒绝）；随后 `GET /api/orders` 断言 alice 名下**仅 1 笔订单**且 total=89.0——无无券订单、无半单残留（对应事务顺序规约）
 - [ ] **Step 2:** 运行 `uv run pytest tests/test_vuln_coupon.py -v`，Expected: FAIL
-- [ ] **Step 3:** 按 Interfaces 实现 coupons 路由与 orders 核销段（下单请求 `coupon_code=null` 时行为与 Task 4/5 完全一致——回归由既有测试保障）
+- [ ] **Step 3:** 按 Interfaces 实现 coupons 路由与 orders 核销段；同时把 create_order 落库阶段重构为 Interfaces 规约的单一锁定事务（Task 5 草图中窗口后的无条件扣减移入事务，行为不变——Task 4/5 既有测试保持全绿）；下单请求 `coupon_code=null` 时行为与 Task 4/5 完全一致
 - [ ] **Step 4:** 运行 `uv run pytest -v`（全量），Expected: 全绿（本任务 10 条 + 前序全部）
 - [ ] **Step 5:** Commit：`feat(m2-pre): 优惠券漏洞族（循环领取/面额篡改/并发核销）`
 
