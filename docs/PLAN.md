@@ -86,13 +86,15 @@
 
 ### 3.1 记录类型与 Schema
 
-Append-only JSONL（`evidence/ledger.jsonl` + `evidence/raw/` 原始文件）。每行一条，六种记录（COMPARE 不是写入记录，是代码派生物，见 §3.3）：
+Append-only JSONL（`evidence/ledger.jsonl` + `evidence/raw/` 原始文件）。每行一条，六种 LLM 写入记录 + 代码追加的 compare 派生条目（见 §3.3）：
 
 ```jsonc
 // PRD — 动作前预测（先写，后动作）
+// check_ref 绑定本动作服务的覆盖检查项（M1 定稿字段）；首触 ASSET 由网关按 ACT 目标自动创建并回填 asset_ref
 {"id":"PRD-0009","type":"prediction","ts":"...",
  "action":"GET /api/order?id=10086",
- "expect_tags_any":["http_403","waf_block"],
+ "check_ref":"EC-014","asset_ref":null,
+ "expect_tags_any":["http_403","waf_block_page"],
  "branches":[
    {"if":"403+WAF特征","then":"有WAF≠接口不存在，需评估绕过"},
    {"if":"404","then":"路径可能不存在，也可能鉴权前置——需对照基线路径再判"},
@@ -140,7 +142,7 @@ Append-only JSONL（`evidence/ledger.jsonl` + `evidence/raw/` 原始文件）。
 - **COMPARE 是代码计算的派生物，不由 LLM 自报**：`COMPARE(PRD, OBS) = expect_tags_any ∩ OBS.tags` 非空 → matched / 部分命中 → partial / 零命中 → mismatched。PRD 的 `branches` 字段是给人看、给后续 INF 引用的解释性内容，**不参与机器计分**（机器可求值谓词化列为 M1 后增强项）。
 - **对冲抑制**：`expect_tags_any` 基数上限 ≤3（网关校验，超限拒收 PRD）；每条 PRD 记 **Brier 式预测分**（预测集越宽分数越低），预测质量是可优化的量化目标，超集对冲自然亏分。
 - **PRD template vs instance**：template 为代码注册的可复用预测模板（支持声明次数的 N 次型，如"批量遍历 order id：预期 403/404 二选一"），instance 为单次实例化。批量动作引用 template，既控成本又不破坏"未消费"校验。
-- **猜错不惩罚，不写不放行**：COMPARE 结果 `matched / partial / mismatched` 三态由代码判定并追加为账本派生条目。
+- **猜错不惩罚，不写不放行**：COMPARE 三态由代码判定，结果以 `type=compare` 派生条目由**代码**追加进账本（区别于 LLM 写入的六类，见 §3.1）。
 - **`mismatched` 是黄金信号**：预测与现象不一致 = 认知外的东西 = 自动生成一条 investigation 任务（"PRD-0009 预期 403，实测 200+他人数据，为什么？"），优先级高于原计划。惊喜驱动深挖，替代"没结果就换目标"。
 
 ### 3.4 溯源三件套（对幻觉与记忆丢失）

@@ -1,0 +1,13 @@
+# OMC 运行时工件（会话状态/HUD 缓存等，禁止入库）
+.omc/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 编译产物（是否入库见 INTEGRATION.md §5 决策点 5，当前默认忽略）
+gen/
+
+# 账本运行数据（证据属本地产物，不入库）
+evidence/

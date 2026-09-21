@@ -76,7 +76,7 @@ redteam_vul = 打点层，领域 playbook = 业务层。金融/电商企业渗�
 
 ## 3. RedTeam-Tools → 工具网关的选型菜单
 
-**上游形态**：README 工具目录（150+ 工具，按 MITRE ATT&CK 战术名分章：Red Team Tips / Reconnaissance / Initial Access / Execution / Persistence / Privilege Escalation / Defense Evasion / Credential Access / Discovery / Lateral Movement / Exfiltration / Impact，偏 Windows/AD/钓鱼）。
+**上游形态**：README 工具目录（150+ 工具，按 MITRE ATT&CK 战术名分章：Red Team Tips / Reconnaissance / Resource Development / Initial Access / Execution / Persistence / Privilege Escalation / Defense Evasion / Credential Access / Discovery / Lateral Movement / Collection / Command and Control / Exfiltration / Impact，偏 Windows/AD/钓鱼）。
 
 **抽取规则**：Web 相关子集 → `knowledge/tools/catalog.yaml`，字段 `{name, url, phase, category, permission_tier, wrap_as}`。`wrap_as` 决定网关封装形式：capability（HBG 能力）/ mcp（MCP server）/ cli（run_command 透传）。
 
